@@ -2,685 +2,829 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Among Us - Single File Clone</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Among Us - Multiplayer P2P</title>
+    <!-- PeerJS for P2P Multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #000;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: white;
-            user-select: none;
+        :root {
+            --am-red: #C51111;
+            --am-blue: #132ED1;
+            --am-green: #117F2D;
+            --am-pink: #ED54BA;
+            --am-orange: #EF7D0E;
+            --am-yellow: #F5F557;
+            --am-black: #3F474E;
+            --am-white: #D6E0F0;
+            --am-purple: #6B2FBB;
+            --am-brown: #71491E;
+            --am-cyan: #38FEDB;
+            --am-lime: #50EF39;
+            --glass: #87ceeb;
         }
 
-        #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background: #000;
+            font-family: 'Arial Black', Gadget, sans-serif;
+            color: white; user-select: none;
+        }
+
+        #app {
+            width: 100vw; height: 100vh;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
         }
 
         canvas {
-            display: block;
-            image-rendering: pixelated;
-        }
-
-        #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .btn {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: rgba(255, 0, 0, 0.7);
-            border: 4px solid white;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 14px;
-            cursor: pointer;
-            pointer-events: auto;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            transition: transform 0.1s;
-        }
-
-        .btn:active {
-            transform: scale(0.9);
-        }
-
-        #kill-btn {
-            bottom: 120px;
-            background: rgba(200, 0, 0, 0.9);
             display: none;
+            background: #050505;
+            cursor: crosshair;
         }
 
-        #use-btn {
-            background: rgba(0, 100, 255, 0.9);
+        /* Lobby / UI */
+        #menu {
+            display: flex; flex-direction: column; gap: 20px;
+            width: 300px; text-align: center;
+        }
+
+        .logo { font-size: 40px; letter-spacing: 2px; margin-bottom: 20px; }
+        .btn {
+            background: var(--am-blue); border: 4px solid white;
+            padding: 15px; border-radius: 10px; cursor: pointer;
+            font-size: 18px; color: white; text-transform: uppercase;
+            transition: 0.1s;
+        }
+        .btn:hover { background: #1a3bd6; }
+        .btn:active { transform: scale(0.95); }
+        .btn.secondary { background: #444; }
+
+        input {
+            padding: 12px; border-radius: 8px; border: none;
+            font-size: 16px; text-align: center;
+            background: #222; color: white; border: 1px solid #444;
+        }
+
+        /* Overlays */
+        #ui-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none;
         }
 
         #task-list {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            pointer-events: none;
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0,0,0,0.5); padding: 15px; border-radius: 5px;
+            border-left: 5px solid var(--am-yellow);
         }
 
-        .task-item {
-            margin: 5px 0;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
+        #action-buttons {
+            position: absolute; bottom: 30px; right: 30px;
+            display: flex; gap: 20px; pointer-events: auto;
         }
 
-        .task-checkbox {
-            width: 12px;
-            height: 12px;
-            border: 1px solid white;
-            margin-right: 8px;
+        .action-btn {
+            width: 80px; height: 80px; border-radius: 50%;
+            border: 4px solid white; color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; cursor: pointer; background: rgba(0,0,0,0.6);
+            flex-direction: column; text-align: center;
+            line-height: 1.1;
+        }
+        #kill-btn { border-color: #ff3333; color: #ff3333; display: none; }
+        #sabotage-btn { border-color: #ffaa33; color: #ffaa33; display: none; }
+        #use-btn { border-color: #33aaff; color: #33aaff; }
+        #report-btn { border-color: #ffffff; color: #ffffff; }
+
+        #sabotage-menu {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1500; pointer-events: auto;
         }
 
-        .task-done .task-checkbox {
-            background: #4caf50;
+        .sab-option {
+            background: #222; border: 2px solid #ffaa33; padding: 20px;
+            width: 250px; margin: 10px; border-radius: 10px; cursor: pointer;
+            text-align: center; font-weight: bold;
+        }
+        .sab-option:hover { background: #333; }
+        .sab-option.cooldown { opacity: 0.5; cursor: not-allowed; border-color: #666; }
+
+        #reactor-alert {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 0, 0, 0.8); padding: 10px 40px; border-radius: 10px;
+            font-size: 24px; font-weight: bold; animation: blink 1s infinite;
+            display: none; z-index: 500;
         }
 
-        .task-done {
-            color: #4caf50;
-            text-decoration: line-through;
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        #meeting-overlay, #announcement {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1000; pointer-events: auto;
         }
 
-        #meeting-overlay, #game-over-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
-            z-index: 100;
+        .player-card {
+            background: #222; border: 2px solid #edeff2;
+            width: 250px; padding: 10px; margin: 5px;
+            display: flex; align-items: center; gap: 15px;
+            float: left; cursor: pointer;
+        }
+        .player-card.dead { opacity: 0.3; pointer-events: none; }
+        .player-card.voted::after { content: '✔️'; margin-left: auto; }
+
+        #status-msg {
+            position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 20px;
+            font-size: 14px; display: none; z-index: 2000;
         }
 
-        .overlay-title {
-            font-size: 48px;
-            font-weight: 800;
-            margin-bottom: 20px;
-            text-transform: uppercase;
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; display: none; align-items: center; justify-content: center;
+            z-index: 9999; font-size: 32px;
         }
 
-        .imposter-text {
-            color: #ff3e3e;
-        }
-
-        .crewmate-text {
-            color: #3e8bff;
-        }
-
-        #restart-btn {
-            padding: 15px 30px;
-            background: white;
-            color: black;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-
-        #meeting-timer {
-            font-size: 24px;
-            margin-bottom: 20px;
-        }
-
-        #ejected-text {
-            font-size: 24px;
-            font-style: italic;
-            text-align: center;
-            max-width: 80%;
-        }
-
-        #minimap {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 150px;
-            height: 150px;
-            background: rgba(0,0,0,0.5);
-            border: 2px solid rgba(255,255,255,0.3);
-            pointer-events: none;
-        }
-
-        #joystick-container {
-            position: absolute;
-            bottom: 40px;
-            left: 40px;
-            width: 120px;
-            height: 120px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 50%;
-            display: none; /* Only for touch */
+        #room-code-display {
+            position: absolute; top: 10px; right: 20px; font-size: 20px; color: #aaa;
         }
     </style>
 </head>
 <body>
-    <div id="game-container">
+
+    <div id="loading">Connecting...</div>
+
+    <div id="app">
+        <!-- Main Menu -->
+        <div id="menu">
+            <h1 class="logo">AMONG <span style="color: var(--am-red)">US</span></h1>
+            <input type="text" id="name-input" placeholder="ENTER NAME" maxlength="10">
+            <div style="display:flex; flex-direction:column; gap:5px; background: #111; padding: 10px; border-radius: 8px;">
+                <div style="font-size: 12px; color: #888;">BOT DIFFICULTY</div>
+                <select id="difficulty-select" style="padding: 8px; border-radius: 5px; background: #222; color: white; border: 1px solid #444;">
+                    <option value="EASY">EASY (SLOW & DUMB)</option>
+                    <option value="MEDIUM" selected>MEDIUM (STANDARD)</option>
+                    <option value="HARD">HARD (AGGRESSIVE)</option>
+                </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:5px; background: #111; padding: 10px; border-radius: 8px;">
+                <div style="font-size: 12px; color: #888; text-align: left; margin-bottom: 5px;">SELECT COLOR</div>
+                <div id="color-select-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px;"></div>
+            </div>
+            <button class="btn" id="solo-btn">PLAY VS BOTS</button>
+            <hr style="width:100%; border: 1px solid #333; margin: 10px 0;">
+            <button class="btn secondary" id="create-btn">CREATE ROOM</button>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="room-input" placeholder="CODE" style="width: 100px;">
+                <button class="btn secondary" style="flex:1" id="join-btn">JOIN</button>
+            </div>
+            <div id="info" style="font-size: 12px; color: #888; margin-top: 10px;">Multiplayer uses PeerJS (P2P). Use short room codes like 'ABCD'.</div>
+        </div>
+
         <canvas id="gameCanvas"></canvas>
+
         <div id="ui-layer">
             <div id="task-list">
-                <div style="font-weight: bold; margin-bottom: 10px; color: #aaa;">TASKS</div>
-                <div class="task-item" id="task-upload"><div class="task-checkbox"></div> Upload Data (Admin)</div>
-                <div class="task-item" id="task-wires"><div class="task-checkbox"></div> Fix Wires (Electric)</div>
-                <div class="task-item" id="task-trash"><div class="task-checkbox"></div> Empty Trash (Storage)</div>
-                <div class="task-item" id="task-divert"><div class="task-checkbox"></div> Divert Power (Medbay)</div>
+                <div style="color:var(--am-yellow); margin-bottom: 5px;">TASKS</div>
+                <div id="tasks-container"></div>
             </div>
 
-            <div id="use-btn" class="btn">USE</div>
-            <div id="kill-btn" class="btn">KILL</div>
+            <div id="action-buttons">
+                <button id="sabotage-btn" class="action-btn">SABOTAGE</button>
+                <button id="kill-btn" class="action-btn">KILL</button>
+                <button id="report-btn" class="action-btn">REPORT</button>
+                <button id="use-btn" class="action-btn">USE</button>
+            </div>
 
-            <div id="minimap"></div>
+            <div id="status-msg"></div>
+            <div id="room-code-display"></div>
+            <div id="reactor-alert">REACTOR MELTDOWN: <span id="reactor-time">30</span>s</div>
+        </div>
+
+        <div id="sabotage-menu">
+            <h2 style="color:#ffaa33">SELECT SABOTAGE</h2>
+            <div id="sab-lights" class="sab-option">LIGHTS<br><span style="font-size:12px; font-weight:normal">Reduce Crew Vision</span></div>
+            <div id="sab-reactor" class="sab-option">REACTOR<br><span style="font-size:12px; font-weight:normal">Critical Meltdown Event</span></div>
+            <button class="btn secondary" style="margin-top:20px;" onclick="document.getElementById('sabotage-menu').style.display='none'">CLOSE</button>
         </div>
 
         <div id="meeting-overlay">
-            <div class="overlay-title crewmate-text">EMERGENCY MEETING</div>
-            <div id="meeting-timer">Discussing...</div>
-            <div id="ejected-text"></div>
+            <h2 style="color:var(--am-red)">WHO IS THE IMPOSTER?</h2>
+            <div id="voting-grid" style="display: flex; flex-wrap: wrap; justify-content: center; max-width: 800px; gap: 10px;"></div>
+            <div id="meeting-timer" style="margin-top: 20px; font-size: 20px;"></div>
+            <button class="btn" style="margin-top:20px; background:#444;" id="skip-btn">SKIP VOTE</button>
         </div>
 
-        <div id="game-over-overlay">
-            <div id="game-over-title" class="overlay-title">VICTORY</div>
-            <div id="game-over-subtitle">The crew finished all tasks!</div>
-            <button id="restart-btn">PLAY AGAIN</button>
+        <div id="announcement">
+            <h1 id="ann-title"></h1>
+            <p id="ann-sub"></p>
+            <button id="restart-btn" class="btn" style="margin-top: 20px;" onclick="location.reload()">BACK TO MENU</button>
         </div>
     </div>
 
     <script>
-        /** @type {HTMLCanvasElement} */
+        const COLORS = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#800080', '#008000', '#ffffff', '#808080', '#38FEDB'];
+        
         const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const useBtn = document.getElementById('use-btn');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const uiLayer = document.getElementById('ui-layer');
+        const menu = document.getElementById('menu');
+        const statusMsg = document.getElementById('status-msg');
+        const tasksContainer = document.getElementById('tasks-container');
         const killBtn = document.getElementById('kill-btn');
-        const restartBtn = document.getElementById('restart-btn');
+        const sabotageBtn = document.getElementById('sabotage-btn');
+        const sabMenu = document.getElementById('sabotage-menu');
+        const reactorAlert = document.getElementById('reactor-alert');
+        const reactorTimeDisp = document.getElementById('reactor-time');
+        const useBtn = document.getElementById('use-btn');
+        const reportBtn = document.getElementById('report-btn');
         const meetingOverlay = document.getElementById('meeting-overlay');
-        const gameOverOverlay = document.getElementById('game-over-overlay');
+        const announcement = document.getElementById('announcement');
+        const loading = document.getElementById('loading');
 
-        // Game Configuration
-        const MAP_SIZE = 2500;
-        const PLAYER_SPEED = 5;
-        const PLAYER_RADIUS = 25;
-        const VIEW_DISTANCE = 400;
-        const COLORS = [
-            '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', 
-            '#00ffff', '#ffa500', '#800080', '#008000', '#ffffff', '#808080'
-        ];
+        let isHost = false;
+        let p2p = null;
+        let connections = {};
+        let gameStarted = false;
+        let players = {}; 
+        let myId = null;
+        let cam = { x: 0, y: 0 };
+        let inputs = {};
+        let map = { walls: [], tasks: [] };
+        let difficulty = "MEDIUM";
+        let selectedColorIndex = 0;
 
-        let player = {
-            x: 1250,
-            y: 1250,
-            color: '#ff0000',
-            role: 'crewmate', // or 'imposter'
-            vx: 0,
-            vy: 0,
-            alive: true,
-            tasks: [false, false, false, false],
-            lastKill: 0
+        let sabotages = {
+            lights: false,
+            reactor: false,
+            reactorTime: 0,
+            cooldowns: { lights: 0, reactor: 0 }
         };
 
-        let bots = [];
-        let walls = [];
-        let tasks = [];
-        let keys = {};
-        let gameActive = true;
-        let scale = 1;
+        const DIFF_SETTINGS = {
+            EASY: { speed: 2.8, reportDist: 100, killCD: 15000, stalkChance: 0.1, sabChance: 0.05 },
+            MEDIUM: { speed: 4.0, reportDist: 250, killCD: 10000, stalkChance: 0.5, sabChance: 0.1 },
+            HARD: { speed: 5.5, reportDist: 400, killCD: 7000, stalkChance: 1.0, sabChance: 0.3 }
+        };
 
-        // Init Map (The Skeld inspiration)
-        function initGame() {
-            // Overwrite player based on random chance
-            player.role = Math.random() < 0.25 ? 'imposter' : 'crewmate';
-            player.alive = true;
-            player.tasks = [false, false, false, false];
-            player.x = 1250;
-            player.y = 1250;
-            player.lastKill = 0;
+        /** 1. NETWORK LOGIC **/
 
-            if (player.role === 'imposter') {
-                killBtn.style.display = 'flex';
+        function initPeer(id = null) {
+            return new Promise((resolve) => {
+                const peer = new Peer(id);
+                peer.on('open', (id) => resolve(peer));
+                peer.on('error', (err) => {
+                    console.error(err);
+                    alert("Network Error: " + err.type);
+                    loading.style.display = 'none';
+                });
+            });
+        }
+
+        async function createRoom() {
+            const name = document.getElementById('name-input').value || "PLAYER";
+            loading.style.display = 'flex';
+            const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+            p2p = await initPeer(code);
+            myId = p2p.id;
+            isHost = true;
+            
+            p2p.on('connection', (conn) => {
+                conn.on('open', () => {
+                    connections[conn.peer] = conn;
+                    status(`Member joined!`);
+                });
+                conn.on('data', (data) => handleData(conn.peer, data));
+            });
+
+            setupPlayer(myId, name, COLORS[selectedColorIndex]);
+            document.getElementById('room-code-display').innerText = `CODE: ${code}`;
+            startGame();
+        }
+
+        async function joinRoom() {
+            const code = document.getElementById('room-input').value.toUpperCase();
+            const name = document.getElementById('name-input').value || "PLAYER";
+            if (!code) return;
+            loading.style.display = 'flex';
+            p2p = await initPeer();
+            myId = p2p.id;
+            
+            const conn = p2p.connect(code);
+            conn.on('open', () => {
+                connections[code] = conn;
+                conn.send({ type: 'JOIN', name, color: COLORS[selectedColorIndex] });
+                setupPlayer(myId, name, COLORS[selectedColorIndex]);
+                startGame();
+            });
+            conn.on('data', (data) => handleData(code, data));
+            conn.on('error', () => { alert("Room not found"); loading.style.display = 'none'; });
+        }
+
+        function setupPlayer(id, name, color = null) {
+            players[id] = {
+                id, name,
+                x: 1500, y: 1500,
+                color: color || COLORS[Object.keys(players).length % COLORS.length],
+                vx: 0, vy: 0, alive: true, role: 'crewmate',
+                tasks: [false, false, false, false],
+                voted: false, lastKill: 0
+            };
+        }
+
+        function handleData(from, data) {
+            if (data.type === 'JOIN' && isHost) {
+                // Find next available color if preferred is taken
+                let usedColors = Object.values(players).map(p => p.color);
+                let color = data.color || COLORS[0];
+                if (usedColors.includes(color)) {
+                    color = COLORS.find(c => !usedColors.includes(c)) || COLORS[Math.floor(Math.random() * COLORS.length)];
+                }
+
+                players[from] = {
+                    id: from, name: data.name,
+                    x: 1500 + Math.random()*50, y: 1500 + Math.random()*50,
+                    color: color,
+                    vx: 0, vy: 0, alive: true, role: 'crewmate',
+                    tasks: [false, false, false, false], voted: false, lastKill: 0
+                };
+                broadcast({ type: 'SYNC', players });
+                assignRoles(); 
+            }
+            if (data.type === 'SYNC') players = data.players;
+            if (data.type === 'POS') {
+                if (players[from]) {
+                    players[from].x = data.x;
+                    players[from].y = data.y;
+                    players[from].vx = data.vx;
+                    players[from].vy = data.vy;
+                }
+                if (isHost) broadcast({ type: 'POS_RELAY', from, x: data.x, y: data.y, vx: data.vx, vy: data.vy });
+            }
+            if (data.type === 'POS_RELAY' && data.from !== myId) {
+                if (players[data.from]) {
+                    players[data.from].x = data.x; players[data.from].y = data.y;
+                    players[data.from].vx = data.vx; players[data.from].vy = data.vy;
+                }
+            }
+            if (data.type === 'KILL' && isHost) killPlayer(data.target);
+            if (data.type === 'REPORT') triggerMeeting(from, data.deadId);
+            if (data.type === 'TASK_DONE') {
+                if (players[data.by]) players[data.by].tasks[data.idx] = true;
+                if (isHost) checkWin();
+            }
+            if (data.type === 'WIN') showWin(data.winner);
+            if (data.type === 'SABOTAGE') triggerSabotage(data.sabType, false);
+            if (data.type === 'SAB_FIX') fixSabotage(data.sabType, false);
+        }
+
+        function broadcast(msg) {
+            Object.values(connections).forEach(c => c.send(msg));
+        }
+
+        function triggerSabotage(type, isLocal = true) {
+            if (type === 'lights') {
+                sabotages.lights = true;
+                setTimeout(() => { sabotages.lights = false; }, 15000);
+            }
+            if (type === 'reactor') {
+                sabotages.reactor = true;
+                sabotages.reactorTime = 30;
+                reactorAlert.style.display = 'block';
+            }
+            if (isLocal) {
+                if (isHost) broadcast({ type: 'SABOTAGE', sabType: type });
+                else Object.values(connections)[0].send({ type: 'SABOTAGE', sabType: type });
+                sabotages.cooldowns[type] = Date.now();
+            }
+        }
+
+        function fixSabotage(type, isLocal = true) {
+            if (type === 'reactor') {
+                sabotages.reactor = false;
+                reactorAlert.style.display = 'none';
+            }
+            if (isLocal) {
+                if (isHost) broadcast({ type: 'SAB_FIX', sabType: type });
+                else Object.values(connections)[0].send({ type: 'SAB_FIX', sabType: type });
+            }
+        }
+
+        /** 2. GAME LOGIC **/
+
+        function initMap() {
+            map.walls = [
+                {x: 500, y: 500, w: 2000, h: 40}, // Top
+                {x: 500, y: 2460, w: 2000, h: 40}, // Bottom
+                {x: 500, y: 500, w: 40, h: 2000}, // Left
+                {x: 2460, y: 500, w: 40, h: 2000}, // Right
+                // Room Walls
+                {x: 1000, y: 1000, w: 40, h: 400},
+                {x: 1000, y: 1600, w: 40, h: 400},
+                {x: 1960, y: 1000, w: 40, h: 400},
+                {x: 1960, y: 1600, w: 40, h: 400},
+                {x: 1000, y: 1000, w: 960, h: 40},
+                {x: 1000, y: 1960, w: 960, h: 40}
+            ];
+            map.tasks = [
+                { name: "UPLOAD DATA", x: 2200, y: 800, color: '#3498db' },
+                { name: "DOWNLOAD DATA", x: 800, y: 2200, color: '#f1c40f' },
+                { name: "FIX WIRING", x: 800, y: 800, color: '#e74c3c' },
+                { name: "EMPTY TRASH", x: 2200, y: 2200, color: '#2ecc71' }
+            ];
+        }
+
+        function startGame() {
+            loading.style.display = 'none';
+            menu.style.display = 'none';
+            canvas.style.display = 'block';
+            uiLayer.style.display = 'block';
+            initMap();
+            gameStarted = true;
+            if (isHost) assignRoles();
+            updateTaskUI();
+            requestAnimationFrame(loop);
+        }
+
+        function assignRoles() {
+            const ids = Object.keys(players);
+            if (ids.length === 0) return;
+            const imposterId = ids[Math.floor(Math.random() * ids.length)];
+            ids.forEach(id => {
+                players[id].role = (id === imposterId) ? 'imposter' : 'crewmate';
+            });
+            broadcast({ type: 'SYNC', players });
+            if (players[myId].role === 'imposter') status("YOU ARE THE IMPOSTER");
+        }
+
+        function loop() {
+            if (!gameStarted) return;
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        function update() {
+            const me = players[myId];
+            if (!me || !me.alive) return;
+
+            let dx = 0, dy = 0;
+            if (inputs['KeyW'] || inputs['ArrowUp']) dy -= 1;
+            if (inputs['KeyS'] || inputs['ArrowDown']) dy += 1;
+            if (inputs['KeyA'] || inputs['ArrowLeft']) dx -= 1;
+            if (inputs['KeyD'] || inputs['ArrowRight']) dx += 1;
+
+            if (dx !== 0 || dy !== 0) {
+                const mag = Math.hypot(dx, dy);
+                dx /= mag; dy /= mag;
+                const speed = 5.5;
+                const nx = me.x + dx * speed;
+                const ny = me.y + dy * speed;
+
+                if (!checkCollision(nx, me.y)) me.x = nx;
+                if (!checkCollision(me.x, ny)) me.y = ny;
+                me.vx = dx; me.vy = dy;
+
+                if (isHost) broadcast({ type: 'POS_RELAY', from: myId, x: me.x, y: me.y, vx: me.vx, vy: me.vy });
+                else if (connections[p2p.id]) /* already connected to host */ connections[Object.keys(connections)[0]].send({ type: 'POS', x: me.x, y: me.y, vx: me.vx, vy: me.vy });
+                else if (p2p && !isHost) {
+                     const hostConn = Object.values(connections)[0];
+                     if (hostConn) hostConn.send({ type: 'POS', x: me.x, y: me.y, vx: me.vx, vy: me.vy });
+                }
             } else {
-                killBtn.style.display = 'none';
+                me.vx = 0; me.vy = 0;
             }
 
-            // Build Bots
-            bots = [];
-            for (let i = 0; i < 9; i++) {
-                bots.push({
-                    id: i,
-                    x: 1100 + Math.random() * 300,
-                    y: 1100 + Math.random() * 300,
-                    color: COLORS[i + 1],
-                    alive: true,
-                    targetX: 1250,
-                    targetY: 1250,
-                    role: (i === 0 && player.role !== 'imposter') ? 'imposter' : 'crewmate',
-                    vx: 0,
-                    vy: 0,
-                    state: 'wandering'
+            // Reactor Countdown
+            if (isHost && sabotages.reactor) {
+                const now = Date.now();
+                if (!sabotages.lastCount || now - sabotages.lastCount > 1000) {
+                    sabotages.reactorTime--;
+                    sabotages.lastCount = now;
+                    reactorTimeDisp.innerText = sabotages.reactorTime;
+                    if (isHost) broadcast({ type: 'SYNC_SAB', sabotages });
+                    if (sabotages.reactorTime <= 0) showWin('IMPOSTER');
+                }
+            } else if (!isHost && sabotages.reactor) {
+                reactorTimeDisp.innerText = sabotages.reactorTime;
+            }
+
+            // Bots
+            if (isHost) {
+                const settings = DIFF_SETTINGS[difficulty] || DIFF_SETTINGS.MEDIUM;
+                Object.values(players).forEach(p => {
+                    if (p.isBot && p.alive) {
+                        // ... decision making ...
+                        const nearTaskDist = Math.hypot(p.x - (p.tx||0), p.y - (p.ty||0));
+                        if (!p.tx || nearTaskDist < 20) {
+                            // Pick new target: Tasks or random area
+                            if (p.role === 'imposter' && Math.random() < settings.stalkChance) {
+                                // Stalker behavior
+                                const targets = Object.values(players).filter(t => t.id !== p.id && t.alive && t.role !== 'imposter');
+                                if (targets.length > 0) {
+                                    const target = targets[Math.floor(Math.random() * targets.length)];
+                                    p.tx = target.x; p.ty = target.y;
+                                }
+                            } else {
+                                const nextTask = map.tasks[Math.floor(Math.random() * map.tasks.length)];
+                                p.tx = nextTask.x + (Math.random()*40-20);
+                                p.ty = nextTask.y + (Math.random()*40-20);
+                            }
+                            
+                            // Bot Sabotage chance
+                            if (p.role === 'imposter' && !sabotages.reactor && Math.random() < settings.sabChance) {
+                                triggerSabotage('reactor');
+                            }
+                        }
+
+                        // ... kill logic ...
+                        if (p.role === 'imposter' && Date.now() - p.lastKill > settings.killCD) {
+                            const victims = Object.values(players).filter(v => v.id !== p.id && v.alive && v.role !== 'imposter');
+                            victims.forEach(v => {
+                                if (Math.hypot(p.x - v.x, p.y - v.y) < 80) {
+                                    killPlayer(v.id);
+                                    p.lastKill = Date.now();
+                                    status(`${p.name} killed ${v.name}!`);
+                                }
+                            });
+                        }
+
+                        // ... report & movement ...
+                        Object.values(players).forEach(other => {
+                            if (!other.alive && Math.hypot(p.x - other.x, p.y - other.y) < settings.reportDist) {
+                                triggerMeeting(p.id, other.id);
+                            }
+                        });
+
+                        const bdx = p.tx - p.x; const bdy = p.ty - p.y;
+                        const dist = Math.hypot(bdx, bdy);
+                        if (dist > 5) {
+                            p.vx = bdx/dist; p.vy = bdy/dist;
+                            const nx = p.x + p.vx * settings.speed;
+                            const ny = p.y + p.vy * settings.speed;
+                            if (!checkCollision(nx, p.y)) p.x = nx;
+                            if (!checkCollision(p.x, ny)) p.y = ny;
+                        } else {
+                            p.vx = 0; p.vy = 0;
+                        }
+                    }
                 });
             }
 
-            // Define Walls (Rectangles: x, y, w, h)
-            walls = [
-                // outer boundaries
-                {x: 0, y: 0, w: MAP_SIZE, h: 50},
-                {x: 0, y: MAP_SIZE-50, w: MAP_SIZE, h: 50},
-                {x: 0, y: 0, w: 50, h: MAP_SIZE},
-                {x: MAP_SIZE-50, y: 0, w: 50, h: MAP_SIZE},
-                
-                // Cafeteria (Central)
-                {x: 1000, y: 1000, w: 500, h: 50}, // Top
-                {x: 1000, y: 1500, w: 500, h: 50}, // Bottom
-                {x: 1000, y: 1000, w: 50, h: 500}, // Left
-                {x: 1500, y: 1000, w: 50, h: 500}, // Right
-
-                // Hallways
-                {x: 1500, y: 1200, w: 400, h: 50},
-                {x: 1500, y: 1300, w: 400, h: 50},
-                {x: 600, y: 1200, w: 400, h: 50},
-                {x: 600, y: 1300, w: 400, h: 50},
-
-                // Storage
-                {x: 1200, y: 1550, w: 100, h: 500},
-                {x: 1100, y: 1700, w: 300, h: 50},
-                
-                // Admin
-                {x: 1550, y: 1100, w: 300, h: 50},
-                {x: 1800, y: 1000, w: 50, h: 300},
-
-                // Electrical
-                {x: 600, y: 1350, w: 50, h: 400},
-                {x: 400, y: 1500, w: 400, h: 50},
-                
-                // Medbay
-                {x: 600, y: 800, w: 50, h: 400},
-                {x: 400, y: 900, w: 400, h: 50},
-            ];
-
-            // Define Tasks
-            tasks = [
-                {id: 0, name: 'Upload Data', x: 1700, y: 1150, color: 'Admin', type: 'upload', done: false},
-                {id: 1, name: 'Fix Wires', x: 500, y: 1600, color: 'Electric', type: 'wires', done: false},
-                {id: 2, name: 'Empty Trash', x: 1250, y: 1900, color: 'Storage', type: 'trash', done: false},
-                {id: 3, name: 'Divert Power', x: 500, y: 850, color: 'Medbay', type: 'power', done: false},
-            ];
-
-            updateTaskUI();
-            gameActive = true;
-            meetingOverlay.style.display = 'none';
-            gameOverOverlay.style.display = 'none';
+            updateUI();
         }
 
-        function updateTaskUI() {
-            const taskElements = [
-                document.getElementById('task-upload'),
-                document.getElementById('task-wires'),
-                document.getElementById('task-trash'),
-                document.getElementById('task-divert')
-            ];
-
-            player.tasks.forEach((done, index) => {
-                if (done) {
-                    taskElements[index].classList.add('task-done');
-                } else {
-                    taskElements[index].classList.remove('task-done');
-                }
-            });
-
-            // Check win condition
-            if (player.tasks.every(t => t)) {
-                showGameOver('VICTORY', 'The crew finished all tasks!');
-            }
-        }
-
-        function showGameOver(title, subtitle) {
-            gameActive = false;
-            gameOverOverlay.style.display = 'flex';
-            document.getElementById('game-over-title').innerText = title;
-            document.getElementById('game-over-title').className = 'overlay-title ' + (title === 'VICTORY' ? 'crewmate-text' : 'imposter-text');
-            document.getElementById('game-over-subtitle').innerText = subtitle;
-        }
-
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            scale = Math.max(canvas.width / 1920, canvas.height / 1080);
-        }
-
-        window.addEventListener('resize', resize);
-        resize();
-
-        // Controls
-        window.addEventListener('keydown', e => keys[e.code] = true);
-        window.addEventListener('keyup', e => keys[e.code] = false);
-
-        useBtn.addEventListener('click', () => {
-            tasks.forEach((task, index) => {
-                const dist = Math.hypot(player.x - task.x, player.y - task.y);
-                if (dist < 80) {
-                    player.tasks[index] = true;
-                    updateTaskUI();
-                }
-            });
-        });
-
-        killBtn.addEventListener('click', () => {
-            if (player.role !== 'imposter' || !player.alive) return;
-            const now = Date.now();
-            if (now - player.lastKill < 10000) return; // 10s cooldown
-
-            let nearest = null;
-            let minDist = 100;
-
-            bots.forEach(bot => {
-                if (bot.alive) {
-                    const d = Math.hypot(player.x - bot.x, player.y - bot.y);
-                    if (d < minDist) {
-                        minDist = d;
-                        nearest = bot;
-                    }
-                }
-            });
-
-            if (nearest) {
-                nearest.alive = false;
-                player.lastKill = now;
-                checkWinConditions();
-            }
-        });
-
-        restartBtn.addEventListener('click', () => {
-            initGame();
-        });
-
-        function checkWinConditions() {
-            const aliveCrew = bots.filter(b => b.alive && b.role === 'crewmate').length + (player.role === 'crewmate' && player.alive ? 1 : 0);
-            const aliveImposters = bots.filter(b => b.alive && b.role === 'imposter').length + (player.role === 'imposter' && player.alive ? 1 : 0);
-
-            if (aliveImposters === 0) {
-                showGameOver('VICTORY', 'The imposter was ejected!');
-            } else if (aliveCrew <= aliveImposters) {
-                showGameOver('DEFEAT', 'The imposter killed everyone!');
-            }
-        }
-
-        // Collision detection
-        function checkCollision(x, y, radius) {
-            for (let wall of walls) {
-                if (x + radius > wall.x && x - radius < wall.x + wall.w &&
-                    y + radius > wall.y && y - radius < wall.y + wall.h) {
-                    return true;
-                }
+        function checkCollision(x, y) {
+            for(let w of map.walls) {
+                if (x + 20 > w.x && x - 20 < w.x + w.w && y + 20 > w.y && y - 20 < w.y + w.h) return true;
             }
             return false;
         }
 
-        // Draw Player Bean
-        function drawPlayer(ctx, x, y, color, angle, isAlive, label) {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(angle);
-
-            if (!isAlive) {
-                // Draw bone/dead body
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.ellipse(0, 5, 20, 15, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 3;
-                ctx.stroke();
-                
-                ctx.fillStyle = 'white';
-                ctx.beginPath();
-                ctx.rect(-5, -15, 10, 20);
-                ctx.fill();
-                ctx.stroke();
-                ctx.restore();
-                return;
-            }
-
-            // Backpack
-            ctx.fillStyle = color;
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 3;
-            ctx.fillRect(-28, -15, 15, 30);
-            ctx.strokeRect(-28, -15, 15, 30);
-
-            // Body
-            ctx.beginPath();
-            ctx.roundRect(-20, -25, 40, 50, 20);
-            ctx.fill();
-            ctx.stroke();
-
-            // Visor
-            ctx.fillStyle = '#87ceeb';
-            ctx.beginPath();
-            ctx.roundRect(0, -15, 25, 20, 10);
-            ctx.fill();
-            ctx.stroke();
-            
-            // Visor highlight
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
-            ctx.beginPath();
-            ctx.roundRect(5, -12, 10, 5, 5);
-            ctx.fill();
-
-            ctx.restore();
-
-            if (label) {
-                ctx.fillStyle = 'white';
-                ctx.font = 'bold 14px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(label, x, y - 35);
-            }
-        }
-
-        function update() {
-            if (!gameActive) return;
-
-            // Player Movement
-            let dx = 0;
-            let dy = 0;
-            if (keys['ArrowUp'] || keys['KeyW']) dy -= 1;
-            if (keys['ArrowDown'] || keys['KeyS']) dy += 1;
-            if (keys['ArrowLeft'] || keys['KeyA']) dx -= 1;
-            if (keys['ArrowRight'] || keys['KeyD']) dx += 1;
-
-            if (dx !== 0 || dy !== 0) {
-                const mag = Math.hypot(dx, dy);
-                dx /= mag;
-                dy /= mag;
-                
-                const nextX = player.x + dx * PLAYER_SPEED;
-                const nextY = player.y + dy * PLAYER_SPEED;
-
-                if (!checkCollision(nextX, player.y, PLAYER_RADIUS)) player.x = nextX;
-                if (!checkCollision(player.x, nextY, PLAYER_RADIUS)) player.y = nextY;
-                
-                player.vx = dx;
-                player.vy = dy;
-            }
-
-            // Bot logic
-            bots.forEach(bot => {
-                if (!bot.alive) return;
-
-                // Move towards target
-                const dx = bot.targetX - bot.x;
-                const dy = bot.targetY - bot.y;
-                const dist = Math.hypot(dx, dy);
-
-                if (dist < 10) {
-                    // New target
-                    bot.targetX = 50 + Math.random() * (MAP_SIZE - 100);
-                    bot.targetY = 50 + Math.random() * (MAP_SIZE - 100);
-                } else {
-                    const vx = (dx / dist) * (PLAYER_SPEED * 0.7);
-                    const vy = (dy / dist) * (PLAYER_SPEED * 0.7);
-                    
-                    if (!checkCollision(bot.x + vx, bot.y, PLAYER_RADIUS)) bot.x += vx;
-                    if (!checkCollision(bot.x, bot.y + vy, PLAYER_RADIUS)) bot.y += vy;
-                    
-                    bot.vx = vx;
-                    bot.vy = vy;
-                }
-
-                // Imposter Bot logic
-                if (bot.role === 'imposter') {
-                    // Try to kill player
-                    const dToPlayer = Math.hypot(player.x - bot.x, player.y - bot.y);
-                    if (dToPlayer < 60 && player.alive && player.role !== 'imposter') {
-                        player.alive = false;
-                        showGameOver('DEFEAT', 'You were killed by ' + bot.color);
-                    }
-                }
-            });
-
-            // Update Kill Cooldown UI
-            if (player.role === 'imposter' && player.alive) {
-                const cooldown = Math.max(0, 10 - (Date.now() - player.lastKill) / 1000);
-                killBtn.innerText = cooldown > 0 ? Math.ceil(cooldown) : 'KILL';
-                killBtn.style.opacity = cooldown > 0 ? 0.5 : 1;
-            }
-        }
+        /** 3. RENDERING **/
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const camX = canvas.width / 2 - player.x;
-            const camY = canvas.height / 2 - player.y;
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const me = players[myId];
+            cam.x = me.x - canvas.width / 2;
+            cam.y = me.y - canvas.height / 2;
 
             ctx.save();
-            ctx.translate(camX, camY);
+            ctx.translate(-cam.x, -cam.y);
 
-            // Draw Background Grid
-            ctx.strokeStyle = '#1a1a1a';
-            ctx.lineWidth = 1;
-            const step = 100;
-            for (let i = 0; i <= MAP_SIZE; i += step) {
-                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, MAP_SIZE); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(MAP_SIZE, i); ctx.stroke();
-            }
+            // Floor
+            ctx.fillStyle = '#111';
+            ctx.fillRect(500, 500, 2000, 2000);
+            
+            // Walls
+            ctx.fillStyle = '#34495e';
+            map.walls.forEach(w => ctx.fillRect(w.x, w.y, w.w, w.h));
 
-            // Draw Walls
-            ctx.fillStyle = '#2c3e50';
-            ctx.strokeStyle = '#34495e';
-            ctx.lineWidth = 4;
-            walls.forEach(w => {
-                ctx.fillRect(w.x, w.y, w.w, w.h);
-                ctx.strokeRect(w.x, w.y, w.w, w.h);
+            // Tasks
+            map.tasks.forEach(t => {
+                ctx.fillStyle = t.color;
+                ctx.beginPath(); ctx.arc(t.x, t.y, 40, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = 'white'; ctx.lineWidth = 4; ctx.stroke();
             });
 
-            // Draw Tasks
-            tasks.forEach((task, i) => {
-                const isDone = player.tasks[i];
-                ctx.fillStyle = isDone ? '#4caf50' : '#f1c40f';
-                ctx.beginPath();
-                ctx.arc(task.x, task.y, 40, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 2;
-                ctx.stroke();
+            // Players
+            Object.values(players).forEach(p => {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                if (p.vx < 0) ctx.scale(-1, 1);
                 
-                ctx.fillStyle = 'white';
-                ctx.font = '12px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(task.name, task.x, task.y + 5);
+                if (!p.alive) {
+                    // Dead body
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath(); ctx.ellipse(0, 10, 20, 12, 0, 0, Math.PI*2); ctx.fill();
+                    ctx.strokeStyle = 'black'; ctx.stroke();
+                    ctx.fillStyle = 'white'; ctx.fillRect(-5, -5, 10, 15);
+                } else {
+                    // Crewmate
+                    ctx.fillStyle = p.color;
+                    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+                    ctx.fillRect(-25, -15, 15, 35); // backpack
+                    ctx.fillRect(-15, 15, 10, 15); ctx.fillRect(5, 15, 10, 15); // legs
+                    ctx.beginPath(); ctx.roundRect(-20, -25, 40, 50, 15); ctx.fill(); ctx.stroke();
+                    ctx.fillStyle = '#87ceeb'; ctx.beginPath(); ctx.roundRect(0, -15, 25, 20, 10); ctx.fill(); ctx.stroke();
+                }
+                ctx.restore();
+                
+                ctx.fillStyle = players[myId].role === 'imposter' && p.role === 'imposter' ? 'red' : 'white';
+                ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center';
+                ctx.fillText(p.name, p.x, p.y - 45);
             });
-
-            // Draw Bots
-            bots.forEach(bot => {
-                const angle = Math.atan2(bot.vy, bot.vx);
-                drawPlayer(ctx, bot.x, bot.y, bot.color, angle, bot.alive, bot.role === 'imposter' && player.role === 'imposter' ? 'IMPOSTER' : '');
-            });
-
-            // Draw Player
-            const pAngle = Math.atan2(player.vy, player.vx);
-            drawPlayer(ctx, player.x, player.y, player.color, pAngle, player.alive, player.role.toUpperCase());
 
             ctx.restore();
 
-            // Fog of War / Vignette
-            const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 100, canvas.width/2, canvas.height/2, VIEW_DISTANCE);
-            grad.addColorStop(0, 'rgba(0,0,0,0)');
-            grad.addColorStop(1, 'rgba(0,0,0,0.8)');
-            ctx.fillStyle = grad;
+            // Lighting
+            const meObj = players[myId];
+            const visionRadius = sabotages.lights && meObj.role === 'crewmate' ? 120 : 500;
+            const grd = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 100, canvas.width/2, canvas.height/2, visionRadius);
+            grd.addColorStop(0, 'rgba(0,0,0,0)');
+            grd.addColorStop(1, 'rgba(0,0,0,0.9)');
+            ctx.fillStyle = grd;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
-            // Minimap
-            const minimap = document.getElementById('minimap');
-            const mmScale = 150 / MAP_SIZE;
-            ctx.save();
-            // Just raw draw on the corner for simplicity
-            const mmX = 20;
-            const mmY = canvas.height - 170;
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.fillRect(mmX, mmY, 150, 150);
-            ctx.strokeStyle = 'white';
-            ctx.strokeRect(mmX, mmY, 150, 150);
+        /** 4. INTERACTION **/
+
+        function updateUI() {
+            const me = players[myId];
+            if (!me) return;
             
-            // Draw walls on minimap
-            ctx.fillStyle = '#444';
-            walls.forEach(w => {
-                ctx.fillRect(mmX + w.x * mmScale, mmY + w.y * mmScale, w.w * mmScale, w.h * mmScale);
-            });
+            killBtn.style.display = (me.role === 'imposter' && me.alive) ? 'flex' : 'none';
+            sabotageBtn.style.display = (me.role === 'imposter' && me.alive) ? 'flex' : 'none';
+            
+            const cd = Math.max(0, 10 - (Date.now() - me.lastKill) / 1000);
+            killBtn.innerText = cd > 0 ? Math.ceil(cd) : 'KILL';
+            killBtn.style.opacity = cd > 0 ? 0.3 : 1;
 
-            // Draw player on minimap
-            ctx.fillStyle = player.color;
-            ctx.beginPath();
-            ctx.arc(mmX + player.x * mmScale, mmY + player.y * mmScale, 3, 0, Math.PI * 2);
-            ctx.fill();
+            const sabCdLights = Math.max(0, 20 - (Date.now() - (sabotages.cooldowns.lights||0)) / 1000);
+            const sabCdReactor = Math.max(0, 45 - (Date.now() - (sabotages.cooldowns.reactor||0)) / 1000);
+            document.getElementById('sab-lights').classList.toggle('cooldown', sabCdLights > 0);
+            document.getElementById('sab-reactor').classList.toggle('cooldown', sabCdReactor > 0);
 
-            // Draw bots on minimap (if alive or imposter knows)
-            bots.forEach(bot => {
-                if (bot.alive || player.role === 'imposter') {
-                    ctx.fillStyle = player.role === 'imposter' && bot.role === 'imposter' ? 'red' : bot.color;
-                    ctx.beginPath();
-                    ctx.arc(mmX + bot.x * mmScale, mmY + bot.y * mmScale, 2, 0, Math.PI * 2);
-                    ctx.fill();
+            let nearBody = false;
+            Object.values(players).forEach(p => { if(!p.alive && Math.hypot(me.x-p.x, me.y-p.y) < 100) nearBody = true; });
+            reportBtn.style.opacity = nearBody ? 1 : 0.3;
+
+            let nearTask = -1;
+            map.tasks.forEach((t, i) => { if(!me.tasks[i] && Math.hypot(me.x-t.x, me.y-t.y) < 80) nearTask = i; });
+            
+            // Check if near reactor to fix it
+            let nearReactor = (sabotages.reactor && Math.hypot(me.x-1500, me.y-1960) < 120);
+            useBtn.style.opacity = (nearTask !== -1 || nearReactor) ? 1 : 0.3;
+        }
+
+        sabotageBtn.onclick = () => { sabMenu.style.display = 'flex'; };
+        document.getElementById('sab-lights').onclick = () => { 
+            if (Date.now() - sabotages.cooldowns.lights > 20000) { triggerSabotage('lights'); sabMenu.style.display = 'none'; }
+        };
+        document.getElementById('sab-reactor').onclick = () => { 
+            if (Date.now() - sabotages.cooldowns.reactor > 45000) { triggerSabotage('reactor'); sabMenu.style.display = 'none'; }
+        };
+
+        killBtn.onclick = () => {
+            const me = players[myId];
+            if (me.role !== 'imposter' || Date.now() - me.lastKill < 10000) return;
+            let target = null;
+            Object.values(players).forEach(p => { if(p.id !== myId && p.alive && p.role !== 'imposter' && Math.hypot(me.x-p.x, me.y-p.y) < 100) target = p.id; });
+            if (target) {
+                if (isHost) killPlayer(target); else Object.values(connections)[0].send({ type: 'KILL', target });
+                me.lastKill = Date.now();
+            }
+        };
+
+        useBtn.onclick = () => {
+            const me = players[myId];
+            if (sabotages.reactor && Math.hypot(me.x-1500, me.y-1960) < 120) {
+                fixSabotage('reactor');
+                return;
+            }
+            map.tasks.forEach((t, i) => {
+                if (!me.tasks[i] && Math.hypot(me.x-t.x, me.y-t.y) < 80) {
+                    me.tasks[i] = true; updateTaskUI();
+                    if (isHost) checkWin(); else Object.values(connections)[0].send({ type: 'TASK_DONE', by: myId, idx: i });
                 }
             });
-            ctx.restore();
+        };
+
+        reportBtn.onclick = () => {
+            let deadId = null;
+            Object.values(players).forEach(p => { if(!p.alive && Math.hypot(players[myId].x-p.x, players[myId].y-p.y) < 100) deadId = p.id; });
+            if (deadId) {
+                if (isHost) triggerMeeting(myId, deadId); else Object.values(connections)[0].send({ type: 'REPORT', deadId });
+            }
+        };
+
+        function killPlayer(id) {
+            if (players[id]) players[id].alive = false;
+            broadcast({ type: 'SYNC', players });
+            checkWin();
         }
 
-        function gameLoop() {
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
+        function checkWin() {
+            const alive = Object.values(players).filter(p => p.alive);
+            const imposterAlive = alive.some(p => p.role === 'imposter');
+            const crewAlive = alive.filter(p => p.role === 'crewmate').length;
+
+            if (!imposterAlive) showWin('CREWMATES');
+            else if (crewAlive <= 1) showWin('IMPOSTER');
         }
 
-        initGame();
-        gameLoop();
+        function showWin(winner) {
+            gameStarted = false;
+            broadcast({ type: 'WIN', winner });
+            announcement.style.display = 'flex';
+            document.getElementById('ann-title').innerText = winner + " WIN";
+            document.getElementById('ann-title').style.color = winner === 'IMPOSTER' ? 'red' : 'cyan';
+        }
+
+        function triggerMeeting(by, deadId) {
+            gameStarted = false;
+            meetingOverlay.style.display = 'flex';
+            const grid = document.getElementById('voting-grid'); grid.innerHTML = '';
+            Object.values(players).forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'player-card' + (p.alive ? '' : ' dead');
+                card.innerHTML = `<div style="width:30px; height:30px; border-radius:50%; background:${p.color}"></div><span>${p.name}</span>`;
+                card.onclick = () => { meetingOverlay.style.display = 'none'; gameStarted = true; requestAnimationFrame(loop); };
+                grid.appendChild(card);
+            });
+        }
+
+        function updateTaskUI() {
+            tasksContainer.innerHTML = '';
+            players[myId].tasks.forEach((done, i) => {
+                const d = document.createElement('div'); d.style.fontSize = '12px';
+                d.style.color = done ? '#2ecc71' : 'white';
+                d.innerText = (done ? '✔ ' : '☐ ') + map.tasks[i].name;
+                tasksContainer.appendChild(d);
+            });
+        }
+
+        function status(msg) {
+            statusMsg.innerText = msg; statusMsg.style.display = 'block';
+            setTimeout(() => statusMsg.style.display = 'none', 3000);
+        }
+
+        document.getElementById('solo-btn').onclick = () => {
+            difficulty = document.getElementById('difficulty-select').value;
+            myId = 'me'; 
+            const myColor = COLORS[selectedColorIndex];
+            setupPlayer(myId, document.getElementById('name-input').value || "ME", myColor);
+            
+            // Available colors for bots (excluding user's color)
+            let availableColors = COLORS.filter(c => c !== myColor);
+            
+            for(let i=1; i<8; i++) { 
+                const id = 'bot'+i; 
+                const botColor = availableColors.splice(Math.floor(Math.random() * availableColors.length), 1)[0] || COLORS[Math.floor(Math.random()*COLORS.length)];
+                setupPlayer(id, "BOT"+i, botColor); 
+                players[id].isBot = true; 
+                players[id].x = 1000 + Math.random()*1000; 
+                players[id].y = 1000 + Math.random()*1000; 
+                players[id].lastKill = Date.now() + Math.random() * 5000; // staggered start for bots
+            }
+            isHost = true; startGame();
+        };
+
+        function initColorGrid() {
+            const grid = document.getElementById('color-select-grid');
+            COLORS.forEach((color, index) => {
+                const item = document.createElement('div');
+                item.style.width = '100%';
+                item.style.paddingBottom = '100%';
+                item.style.background = color;
+                item.style.borderRadius = '4px';
+                item.style.cursor = 'pointer';
+                item.style.border = '2px solid transparent';
+                if (index === selectedColorIndex) item.style.borderColor = 'white';
+                
+                item.onclick = () => {
+                    selectedColorIndex = index;
+                    Array.from(grid.children).forEach((child, i) => {
+                        child.style.borderColor = i === index ? 'white' : 'transparent';
+                    });
+                };
+                grid.appendChild(item);
+            });
+        }
+        initColorGrid();
+
+        document.getElementById('create-btn').onclick = createRoom;
+        document.getElementById('join-btn').onclick = joinRoom;
+        document.getElementById('skip-btn').onclick = () => { meetingOverlay.style.display = 'none'; gameStarted = true; requestAnimationFrame(loop); };
+
+        window.addEventListener('keydown', e => inputs[e.code] = true);
+        window.addEventListener('keyup', e => inputs[e.code] = false);
+        window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+        window.onresize();
     </script>
 </body>
 </html>
