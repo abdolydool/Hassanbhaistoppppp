@@ -34,17 +34,29 @@ A professional-grade Zoom replica built with React, Tailwind CSS, and Firebase. 
    npm run dev
    ```
 
-## Deploy to GitHub Pages
+## 🚀 Deployment to GitHub
 
-This project is pre-configured for GitHub Pages.
+This app is optimized for GitHub. You have two ways to deploy:
 
-1. **Set your repo in package.json**:
-   Ensure `homepage` or the repository link is set if needed (Vite uses relative paths by default here).
+### 1. Automatic Deployment (GitHub Actions)
+I've included a GitHub Action workflow. Simply:
+1. Create a new repository on GitHub.
+2. Push your code to the `main` branch.
+3. Go to your repo **Settings** > **Pages**.
+4. Under **Build and deployment** > **Source**, select **GitHub Actions**.
+5. Your site will deploy automatically!
 
-2. **Deploy**:
-   ```bash
-   npm run deploy
-   ```
+### 2. Manual Deployment
+Run:
+```bash
+npm run deploy
+```
+
+## ⚠️ Important: Firebase Authorization
+For Google Login to work on GitHub, you **must**:
+1. Go to the [Firebase Console](https://console.firebase.google.com/).
+2. Select your project > **Authentication** > **Settings** > **Authorized domains**.
+3. Add your GitHub Pages domain (e.g., `your-username.github.io`).
 
 ## Technologies
 
