@@ -1,0 +1,6 @@
+{
+  "name": "Hassan Bhai Stopppp",
+  "description": "A high-performance Zoom replica with real-time video meetings, chat, and room management. Built for seamless collaboration and all-in-one communication.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": []
+}
