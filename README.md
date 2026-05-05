@@ -1,20 +1,54 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Hassan Bhai Stopppp 🎥
 
-# Run and deploy your AI Studio app
+A professional-grade Zoom replica built with React, Tailwind CSS, and Firebase. This all-in-one app supports real-time video meetings, instant chat, and meeting management.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/31b345c7-79fb-4823-8aaa-94a3f74b98d8
+- 🔐 **Google Authentication**: Secure sign-in with Firebase.
+- 📹 **Video Conferencing**: Real-time WebRTC video and audio.
+- 💬 **Instant Chat**: Keep the conversation going with a sidebar chat.
+- 🏠 **Meeting Home**: Easily create or join meetings via IDs.
+- 📱 **Responsive Design**: Polished UI that works on all devices.
 
-## Run Locally
+## Quick Start
 
-**Prerequisites:**  Node.js
+1. **Clone the repo**:
+   ```bash
+   git clone <your-repo-url>
+   cd hassan-bhai-stopppp
+   ```
 
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+3. **Firebase Setup**:
+   - Create a project at [Firebase Console](https://console.firebase.google.com/).
+   - Enable **Authentication** (Google Provider).
+   - Create a **Firestore Database**.
+   - Copy your config into `firebase-applet-config.json`.
+
+4. **Run development server**:
+   ```bash
+   npm run dev
+   ```
+
+## Deploy to GitHub Pages
+
+This project is pre-configured for GitHub Pages.
+
+1. **Set your repo in package.json**:
+   Ensure `homepage` or the repository link is set if needed (Vite uses relative paths by default here).
+
+2. **Deploy**:
+   ```bash
+   npm run deploy
+   ```
+
+## Technologies
+
+- **Frontend**: React 19, Vite, Tailwind CSS 4
+- **Backend**: Firebase Auth & Firestore
+- **Animation**: Framer Motion
+- **Icons**: Lucide React
